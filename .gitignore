@@ -1,0 +1,26 @@
+# ===== 敏感文件：绝不提交（含登录态/密钥，泄露会被盗号或烧额度）=====
+cookies.txt
+bili_cookies.txt
+azure_key.txt
+*.cookies
+.env
+
+# ===== 运行时产物 =====
+media/
+*.log
+*.err
+
+# ===== Python =====
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# ===== 系统/编辑器 =====
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,34 @@
+# ===== 核心依赖（不需要 torch，普通使用装这些就够）=====
+# 装法： pip install -r requirements.txt
+
+# Web 后端
+fastapi==0.136.3
+uvicorn==0.49.0
+python-multipart==0.0.32
+
+# TTS：自然嗓音 + 词级时间点
+edge-tts==7.2.8
+
+# 视频/音频提取（字幕优先，没字幕走下面的 Whisper）
+yt-dlp==2026.6.9
+
+# 无字幕时本地转写。
+# ⚠ ctranslate2 必须锁 4.4.0：新版在部分 CPU（如 AMD Ryzen 6000 系）上加载模型会直接段错误（exit 139），见 README「兼容性踩坑」
+faster-whisper==1.2.1
+ctranslate2==4.4.0
+numpy==1.26.4          # 锁 <2，否则 ctranslate2/faster-whisper 报 "Failed to initialize NumPy"
+
+# 发音评测（Azure；可选功能，没配 key 会自动退回浏览器识别，不影响其余模式）
+azure-cognitiveservices-speech==1.50.0
+
+# 上传 PDF / Word 提取文字
+pypdf==6.13.2
+python-docx==1.2.0
+
+# 盲听免空格：按真实英文词切（word-break）
+wordsegment==1.3.1
+
+# ===== 可选：去背景音 / 人声分离（Demucs，需要 torch）=====
+# 不需要这个功能就不用装。要装见 README「可选功能：去背景音」，先装 CPU 版 torch 再装 demucs：
+#   pip install torch==2.2.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+#   pip install demucs==4.0.1

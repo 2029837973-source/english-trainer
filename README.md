@@ -9,10 +9,29 @@
 - **Shadow & score** — phoneme-level pronunciation feedback via Azure (free tier). Without a key you only get rough word-match (browser speech recognition, which relies on Google and may not work in mainland China).
 - **Real audio + standard pronunciation** — original native voice; click any word for IPA + TTS.
 
-[English](#english) · [中文](#中文) · License: MIT
+[English](#english) · [中文](#中文) · [配置 B站 / Azure](docs/SETUP.md) · License: MIT
 
-<!-- 顶部放一张界面截图/GIF 最关键（docs/screenshot.png），UI 工具的 star 几乎全靠它 -->
-<!-- ![screenshot](docs/screenshot.png) -->
+> **作者的话**：我自己用下来，是那种会上瘾的沉浸式听力训练——正反馈立竿见影。
+> 再也不用在 B站 上点点停停、然后被推荐视频带跑；也不用在纸上写了改、改了写。
+> 配合影子跟读 + 盲听的练法（尚雯婕等自学者公开分享过的路子），谁用谁知道。
+>
+> **A note from me**: For me it became the addictive, immersive kind of listening practice — the
+> positive feedback is immediate. No more pause-stop-pause on a video and getting dragged off by
+> recommendations; no more scribbling on paper and crossing it out. Paired with shadow-reading +
+> blind dictation, you'll get it once you try it.
+
+![盲听：边听边打字，立刻逐词判分](docs/02-blind.png)
+
+<table>
+<tr>
+<td width="50%"><img src="docs/03-listen.png" alt="听力：点任意单词看音标、听标准音"></td>
+<td width="50%"><img src="docs/04-shadow.png" alt="跟读：Azure 音素级发音评分"></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/05-flow.png" alt="连读：整篇逐词高亮影子跟读"></td>
+<td width="50%"><img src="docs/01-home.png" alt="任意视频 / PDF / Word 进，自动拆句开练"></td>
+</tr>
+</table>
 
 ---
 
@@ -65,7 +84,8 @@ Open **http://localhost:8000** (use `localhost`, not the LAN IP, so the browser 
 
 ### Configuration (all optional, bring your own)
 
-This repo ships **no credentials**. Add your own only for the features you want:
+This repo ships **no credentials**. Add your own only for the features you want.
+**→ Step-by-step guide with screenshots: [docs/SETUP.md](docs/SETUP.md)** (covers both, in Chinese).
 
 - **Bilibili videos** — B站 returns HTTP 412 for logged-out requests. Install the browser extension "Get cookies.txt LOCALLY", log in to Bilibili, export `cookies.txt`, and drop it in the project root (auto-detected, no restart). Other sites usually need no cookies.
 - **Pronunciation scoring (needed for the shadowing mode)** — create an Azure Speech resource (Free F0, 5 hours/month, no charge). Put the key in `azure_key.txt` (line 1 = key, line 2 = region like `southeastasia`), or set `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION`. Without it, shadowing falls back to browser speech recognition that only checks whether you said the right words (not real pronunciation scoring) — and that fallback relies on Google, so it often won't work in mainland China.
@@ -140,7 +160,8 @@ python -m uvicorn app:app --port 8000
 
 ### 配置（都可选，各填各的）
 
-本仓库**不含任何密钥**，需要哪个功能就填自己的：
+本仓库**不含任何密钥**，需要哪个功能就填自己的。
+**→ 带图详细步骤看这里：[docs/SETUP.md](docs/SETUP.md)**（B站 与 Azure 都有，手把手）。
 
 - **B站视频**：未登录会 412。用浏览器扩展 "Get cookies.txt LOCALLY" 登录 B站、导出 `cookies.txt` 放项目根（自动识别、不用重启）。其他站点一般不用 cookie。
 - **发音评分（跟读模式需要）**：注册 Azure Speech 资源（Free F0，每月 5 小时免费不扣费）。把 key 写进 `azure_key.txt`（第1行 key，第2行区域如 `southeastasia`），或设环境变量 `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION`。不配则只能用浏览器识别做"说没说对词"的文字匹配（非真实发音评分），且该兜底依赖 Google、国内常常用不了。

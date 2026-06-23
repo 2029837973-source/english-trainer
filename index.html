@@ -211,30 +211,6 @@
 
   </div>
 
-  <!-- 右上角：发音评测设置入口 -->
-  <button id="cfgOpen" title="发音评测设置（Azure）" style="position:fixed;top:16px;right:18px;z-index:60;width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(31,39,51,.06);">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7c8794" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-  </button>
-
-  <!-- 发音评测设置弹层 -->
-  <div id="cfgMask" style="display:none;position:fixed;inset:0;z-index:70;background:rgba(31,39,51,.34);align-items:center;justify-content:center;">
-    <div style="background:#fff;border-radius:16px;max-width:440px;width:92%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.2);">
-      <div style="display:flex;align-items:center;font-weight:700;font-size:17px;color:var(--ink);">发音评测设置 · Azure
-        <button id="cfgClose" style="margin-left:auto;border:none;background:none;font-size:24px;line-height:1;color:var(--muted);cursor:pointer;">×</button></div>
-      <p style="font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6;">填了 key 才有<b style="color:var(--ink)">音素级精准发音打分</b>。不填也能用——盲听 / 听力 / 连读，以及跟读的本地基础版都正常。</p>
-      <div id="cfgStatus" style="font-size:13px;margin:12px 0;padding:10px 12px;border-radius:8px;background:var(--blue-soft);color:var(--blue);"></div>
-      <label style="font-size:13px;color:var(--ink);font-weight:600;">Azure Speech Key</label>
-      <input id="cfgKey" class="tin full" style="margin-top:6px;" placeholder="粘贴你的 key（只存到你本机）">
-      <label style="font-size:13px;color:var(--ink);font-weight:600;display:block;margin-top:14px;">区域 Region</label>
-      <input id="cfgRegion" class="tin full" style="margin-top:6px;" value="southeastasia" placeholder="southeastasia">
-      <div class="row" style="margin-top:18px;align-items:center;">
-        <button class="primary" id="cfgSave">保存并启用</button>
-        <span id="cfgMsg" style="font-size:13px;color:var(--muted);"></span>
-      </div>
-      <p style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.6;">怎么免费拿 key：学校邮箱注册 Azure for Students（不用信用卡）→ 建 Speech 资源选 <b style="color:var(--ink)">Free F0</b>、区域 <b style="color:var(--ink)">Southeast Asia</b> → 复制 Key 粘进来。详细步骤见仓库 <span style="font-family:monospace;">docs/SETUP.md</span>。</p>
-    </div>
-  </div>
-
   <!-- 第二屏：练习（独占整页，沉浸） -->
   <div class="screen" id="trainer" style="display:none;">
     <div class="card">
@@ -1030,37 +1006,6 @@ function updateThird(){
   document.getElementById('histScreen').style.display=loadHist().length?'flex':'none';
 }
 renderHist();   // 启动时显示历史
-
-// ---- 发音评测设置面板（App 内填 Azure key，存了即时生效，不用碰文件） ----
-(function(){
-  const mask=document.getElementById('cfgMask');
-  async function load(){
-    try{
-      const r=await fetch('/api/config/azure'); const d=await r.json();
-      const st=document.getElementById('cfgStatus');
-      if(d.locked){ st.textContent='已用环境变量配置，这里不可改。'; }
-      else if(d.configured){ st.textContent='已配置 ✓   区域 '+d.region+'   key …'+(d.key_tail||''); }
-      else{ st.textContent='尚未配置 —— 跟读现在用免费的本地基础版打分。'; }
-      if(d.region) document.getElementById('cfgRegion').value=d.region;
-    }catch(e){}
-  }
-  document.getElementById('cfgOpen').onclick=()=>{ mask.style.display='flex'; load(); };
-  document.getElementById('cfgClose').onclick=()=>{ mask.style.display='none'; };
-  mask.onclick=(e)=>{ if(e.target===mask) mask.style.display='none'; };
-  document.getElementById('cfgSave').onclick=async()=>{
-    const key=document.getElementById('cfgKey').value.trim();
-    const region=document.getElementById('cfgRegion').value.trim()||'southeastasia';
-    const msg=document.getElementById('cfgMsg');
-    if(!key){ msg.style.color='var(--bad)'; msg.textContent='key 不能为空'; return; }
-    msg.style.color='var(--muted)'; msg.textContent='保存中…';
-    try{
-      const r=await fetch('/api/config/azure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key,region})});
-      const d=await r.json();
-      if(d.ok){ msg.style.color='var(--green)'; msg.textContent='已启用！跟读可切到 Azure 精准打分了。'; document.getElementById('cfgKey').value=''; load(); }
-      else{ msg.style.color='var(--bad)'; msg.textContent=d.message||'保存失败'; }
-    }catch(e){ msg.style.color='var(--bad)'; msg.textContent='保存失败：'+e.message; }
-  };
-})();
 </script>
 </body>
 </html>

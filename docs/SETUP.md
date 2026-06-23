@@ -63,8 +63,8 @@
    - 复制 **KEY 1**（或 KEY 2，二选一）和 **Location/Region**（如 `southeastasia`）。
 
 4. **填进项目（任选一种）**
-   - **最省事：开 App → 右上角齿轮「发音评测设置」→ 把 key 粘进去、区域填 `southeastasia` → 保存。** 立刻生效，不用重启、不用碰文件（key 只写到你本机的 `azure_key.txt`）。
-   - 或手动在项目根建 `azure_key.txt`（第1行 key，第2行 region），或设环境变量 `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION`（环境变量优先，设了面板就不覆盖）。手动改文件需重启一次。
+   - **最省事：让你的 AI agent 帮你弄**——把 key 发给它，它会写进项目根的 `azure_key.txt` 并让其生效（agent 可 POST `/api/config/azure` 即时生效、不用重启）。整个过程在你和 AI 的对话里完成，App 里没有设置入口。
+   - 或自己在项目根建 `azure_key.txt`（第1行 key，第2行 region），或设环境变量 `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION`（环境变量优先）。自己改文件后重启一次服务。
 
 5. **验证**
    - 浏览器访问 `http://localhost:8000/api/health`，返回 `"azure": true` 即配置成功。

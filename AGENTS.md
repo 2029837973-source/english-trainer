@@ -60,14 +60,19 @@ Use `localhost` (not a LAN IP) so the browser grants microphone access for the s
 
 After the environment runs, prompt the user only if they want these features:
 
-1. **Pronunciation scoring (shadowing mode)** — Azure Speech key.
-   - Create an Azure Speech resource (Free F0, 5 hrs/month, no charge).
-   - Easiest for the user: open the app → gear icon (top-right) → "发音评测设置" → paste the key,
-     region `southeastasia` → Save. It writes `azure_key.txt` and takes effect immediately (no restart).
-   - Or manually: `azure_key.txt` at the repo root (line 1 = key, line 2 = region), or env vars
-     `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION` (env wins and locks the in-app panel).
-   - `GET /api/health` shows `"azure":true` once set. Without a key, shadowing still works via a
-     local Whisper fallback (basic word-match) — only the phoneme-level precise scoring needs Azure.
+1. **Pronunciation scoring (shadowing mode)** — Azure Speech key. **Guide the user through this in
+   the conversation, then write the key for them. There is no in-app settings UI by design.**
+   - Tell them it's optional: without a key all four modes still work (shadowing falls back to a
+     local Whisper word-match). Only the phoneme-level *precise* scoring needs Azure.
+   - If they want it: have them create a free Azure Speech resource — Azure for Students (school
+     email, no credit card) → Speech resource, tier **Free F0**, region **Southeast Asia** (East Asia
+     is blocked for student subscriptions). They copy KEY 1 from "Keys and Endpoint".
+   - Then YOU write it for them: key on line 1, region on line 2 of `azure_key.txt` at the repo root.
+     To apply it to an already-running server without restart, POST it:
+     `curl -X POST localhost:8000/api/config/azure -H 'Content-Type: application/json' -d '{"key":"<KEY>","region":"southeastasia"}'`
+     (otherwise it loads on next start).
+   - Confirm: `GET /api/health` returns `"azure":true`. Never print, log, or commit the key;
+     `azure_key.txt` is git-ignored.
 2. **Bilibili videos** — a logged-in `cookies.txt`.
    - Bilibili returns HTTP 412 for logged-out requests. Use the browser extension
      "Get cookies.txt LOCALLY", log in to bilibili, export `cookies.txt` to the repo root

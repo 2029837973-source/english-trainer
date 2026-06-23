@@ -6,7 +6,7 @@
 
 - **Any video in** — paste a YouTube / Bilibili / X link (or PDF/Word); uses subtitles, else local Whisper.
 - **Dictate by typing** — type what you hear; auto word-splitting, word-level scoring. No more pause-and-scribble.
-- **Shadow & score** — phoneme-level pronunciation feedback (Azure), or free browser fallback.
+- **Shadow & score** — phoneme-level pronunciation feedback via Azure (free tier). Without a key you only get rough word-match (browser speech recognition, which relies on Google and may not work in mainland China).
 - **Real audio + standard pronunciation** — original native voice; click any word for IPA + TTS.
 
 [English](#english) · [中文](#中文) · License: MIT
@@ -61,14 +61,14 @@ python -m uvicorn app:app --port 8000
 ```
 Open **http://localhost:8000** (use `localhost`, not the LAN IP, so the browser grants microphone access).
 
-**You can start with zero setup** — paste any English text, or a YouTube link, and practice right away. The Bilibili cookie and Azure key below are *optional* add-ons (only needed for B站 videos / precise pronunciation scoring); shadowing works out of the box with free browser recognition.
+**Three of the four modes need zero setup** — blind-listening, listening, and connected-reading work right away once you paste any English text or a YouTube link. The **shadowing** mode needs an Azure key for real pronunciation scoring (free tier); without it you only get rough browser word-matching, which also depends on Google and may not work in mainland China. (Bilibili videos additionally need a login cookie — see below.)
 
 ### Configuration (all optional, bring your own)
 
 This repo ships **no credentials**. Add your own only for the features you want:
 
 - **Bilibili videos** — B站 returns HTTP 412 for logged-out requests. Install the browser extension "Get cookies.txt LOCALLY", log in to Bilibili, export `cookies.txt`, and drop it in the project root (auto-detected, no restart). Other sites usually need no cookies.
-- **Pronunciation scoring** — create an Azure Speech resource (Free F0, 5 hours/month, no charge). Put the key in `azure_key.txt` (line 1 = key, line 2 = region like `southeastasia`), or set `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION`. Without it, shadowing falls back to free browser recognition.
+- **Pronunciation scoring (needed for the shadowing mode)** — create an Azure Speech resource (Free F0, 5 hours/month, no charge). Put the key in `azure_key.txt` (line 1 = key, line 2 = region like `southeastasia`), or set `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION`. Without it, shadowing falls back to browser speech recognition that only checks whether you said the right words (not real pronunciation scoring) — and that fallback relies on Google, so it often won't work in mainland China.
 - **Background-music removal (optional)** — needs torch + Demucs:
   ```bash
   pip install torch==2.2.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cpu
@@ -136,14 +136,14 @@ python -m uvicorn app:app --port 8000
 ```
 浏览器打开 **http://localhost:8000**（用 `localhost` 访问，否则不给麦克风权限）。
 
-**零配置就能开练**——粘一段英文、或贴个 YouTube 链接，立刻就能用。下面的 B站 cookie 和 Azure key 都是*可选*增强（只有练 B站 视频 / 要精准发音评分才需要）；跟读不配 Azure 会自动用免费的浏览器识别。
+**四个模式里三个零配置**——盲听 / 听力 / 连读，粘段英文或贴个 YouTube 链接就能直接用。**跟读**模式要真正的发音纠正需要 Azure key（有免费额度）；不配只能用浏览器识别做粗略的"说没说对词"匹配（非真实纠音），而且它依赖 Google、**国内常常用不了**。（练 B站 视频另外要登录 cookie，见下。）
 
 ### 配置（都可选，各填各的）
 
 本仓库**不含任何密钥**，需要哪个功能就填自己的：
 
 - **B站视频**：未登录会 412。用浏览器扩展 "Get cookies.txt LOCALLY" 登录 B站、导出 `cookies.txt` 放项目根（自动识别、不用重启）。其他站点一般不用 cookie。
-- **发音评分**：注册 Azure Speech 资源（Free F0，每月 5 小时免费不扣费）。把 key 写进 `azure_key.txt`（第1行 key，第2行区域如 `southeastasia`），或设环境变量 `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION`。不配则退回免费浏览器识别。
+- **发音评分（跟读模式需要）**：注册 Azure Speech 资源（Free F0，每月 5 小时免费不扣费）。把 key 写进 `azure_key.txt`（第1行 key，第2行区域如 `southeastasia`），或设环境变量 `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION`。不配则只能用浏览器识别做"说没说对词"的文字匹配（非真实发音评分），且该兜底依赖 Google、国内常常用不了。
 - **去背景音（可选）**：需装 CPU 版 torch + Demucs（见上方英文 install 命令）。
 
 `cookies.txt` / `azure_key.txt` 已被 git 忽略，**切勿提交或外发**，里面是你的登录态/密钥。

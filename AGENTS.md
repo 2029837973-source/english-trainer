@@ -73,10 +73,16 @@ After the environment runs, prompt the user only if they want these features:
      (otherwise it loads on next start).
    - Confirm: `GET /api/health` returns `"azure":true`. Never print, log, or commit the key;
      `azure_key.txt` is git-ignored.
-2. **Bilibili videos** — a logged-in `cookies.txt`.
-   - Bilibili returns HTTP 412 for logged-out requests. Use the browser extension
-     "Get cookies.txt LOCALLY", log in to bilibili, export `cookies.txt` to the repo root
-     (auto-detected, no restart needed). Other sites (YouTube/X) usually need no cookies.
+2. **Bilibili videos** — a logged-in `cookies.txt`. **Guide the user through this in the
+   conversation, then place the file for them. Only Bilibili needs it — YouTube / X / most sites
+   work without any cookie.**
+   - Bilibili returns HTTP 412 for logged-out requests; a logged-in cookie fixes it.
+   - Have the user install the browser extension "Get cookies.txt LOCALLY", log in to bilibili.com,
+     and click Export — it downloads a `cookies.txt` (usually to their Downloads folder).
+   - Then YOU move/copy that file to the repo root as `cookies.txt`. It's auto-detected and read
+     fresh on every request — no restart. (Or point elsewhere with `YT_COOKIES_FILE=<path>`.)
+   - If a Bilibili extract still 412s, the cookie expired — have them re-export, and you replace it.
+   - Never print, log, or commit it (holds their login session); `cookies.txt` is git-ignored.
 
 Full step-by-step for both is in [docs/SETUP.md](docs/SETUP.md).
 

@@ -9,7 +9,10 @@
 - **Shadow & score** — phoneme-level pronunciation feedback via Azure (free tier). Without a key you only get rough word-match (browser speech recognition, which relies on Google and may not work in mainland China).
 - **Real audio + standard pronunciation** — original native voice; click any word for IPA + TTS.
 
-[English](#english) · [中文](#中文) · [配置 B站 / Azure](docs/SETUP.md) · License: MIT
+[English](#english) · [中文](#中文) · [配置 B站 / Azure](docs/SETUP.md) · [给 AI agent 用 (AGENTS.md)](AGENTS.md) · License: MIT
+
+> 想让 AI 帮你装好直接跑？把本仓库链接交给任意编码 agent（Codex / Claude Code / Cursor 等），说"按 AGENTS.md 配好并启动"即可。
+> Hand this repo to any coding agent and say "set it up and run per AGENTS.md".
 
 > **作者的话**：我自己用下来，是那种会上瘾的沉浸式听力训练——正反馈立竿见影。
 > 再也不用在 B站 上点点停停、然后被推荐视频带跑；也不用在纸上写了改、改了写。

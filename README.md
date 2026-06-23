@@ -1,15 +1,18 @@
 # English Listening & Speaking Trainer · 英语听说训练器
 
-Turn **any** video into an English listening, shadowing, and pronunciation workout. Rip the real native audio, dictate what you hear by typing, shadow it sentence by sentence, and get **phoneme-level** pronunciation scoring. Runs locally, free.
+> Open-source, local alternative to Language Reactor + ELSA — turn **any** video into a listening, shadowing, and pronunciation workout. Free.
+>
+> 开源本地版的「Language Reactor + ELSA」——把**任意视频**变成听力 / 跟读 / 发音训练。免费、跑在你自己电脑上。
 
-把**任意视频**变成一套英语听说训练：扒真人原声、边盲听边打字对答案、逐句影子跟读、拿**音素级**发音评分。本地运行、免费。
+- **Any video in** — paste a YouTube / Bilibili / X link (or PDF/Word); uses subtitles, else local Whisper.
+- **Dictate by typing** — type what you hear; auto word-splitting, word-level scoring. No more pause-and-scribble.
+- **Shadow & score** — phoneme-level pronunciation feedback (Azure), or free browser fallback.
+- **Real audio + standard pronunciation** — original native voice; click any word for IPA + TTS.
 
-[English](#english) · [中文](#中文)
+[English](#english) · [中文](#中文) · License: MIT
 
-<!-- 强烈建议在这里放一张界面截图或一段 30 秒 GIF（放到 docs/，比如 docs/screenshot.png），这是 UI 工具涨 star 最关键的一步 -->
+<!-- 顶部放一张界面截图/GIF 最关键（docs/screenshot.png），UI 工具的 star 几乎全靠它 -->
 <!-- ![screenshot](docs/screenshot.png) -->
-
-License: MIT · Backend: Python (FastAPI) · Frontend: single HTML file
 
 ---
 
@@ -96,6 +99,8 @@ A personal English-learning tool, for study and research only. You are responsib
 大多数听力软件练到"听得懂、能复读"就停了。可"听得懂"到"自己能用出来"中间隔着最难、也最少人做的一段。这个工具在**你自己选的真实素材**上把整条路串起来：
 
 **听懂声音 → 发得出来 → （规划中）用得出来。**
+
+练习路径借鉴**影子跟读 + 盲听**——尚雯婕等自学者公开分享过的路子。
 
 差异点：
 

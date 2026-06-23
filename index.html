@@ -546,7 +546,7 @@ function setEngine(eng){
 }
 document.querySelectorAll('#engSeg button').forEach(b=>b.onclick=()=>setEngine(b.dataset.eng));
 
-recBtn.onclick=()=> assessEngine==='browser' ? startBrowserRec() : azureRecToggle();
+recBtn.onclick=()=>recToggle();
 
 // 开始录音前停掉一切播放：否则麦克风会把朗读声也录进去、毁掉发音评分
 function stopPlaybackForRec(){
@@ -555,21 +555,25 @@ function stopPlaybackForRec(){
   stopHighlight(); player.pause(); speechSynthesis.cancel();
 }
 
-async function azureRecToggle(){
+async function recToggle(){
   const box=document.getElementById('shadowResult');
-  if(recording){ mediaRec.stop(); return; }
+  if(recording){ mediaRec.stop(); return; }                 // 再按一下 = 停止并评分/识别
   stopPlaybackForRec();
   let stream;
   try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
   catch(e){ loopBlocked=false; box.innerHTML='<div class="hint">麦克风打不开：'+e.message+'。请用 http://localhost:8000 访问并允许麦克风。</div>'; return; }
   recChunks=[]; mediaRec=new MediaRecorder(stream);
   mediaRec.ondataavailable=e=>{ if(e.data.size) recChunks.push(e.data); };
+  const eng=assessEngine;                                    // 录音开始时锁定引擎，避免中途切换错乱
   mediaRec.onstop=async()=>{
     recording=false; setRecBtn(false); stream.getTracks().forEach(t=>t.stop());
-    await sendAssess(new Blob(recChunks,{type:mediaRec.mimeType||'audio/webm'}));
+    const blob=new Blob(recChunks,{type:mediaRec.mimeType||'audio/webm'});
+    if(eng==='azure') await sendAssess(blob); else await sendTranscribe(blob);
   };
   mediaRec.start(); recording=true; setRecBtn(true);
-  box.innerHTML='<div class="muted">录音中……读出这句话，读完按一下空格（或点“停止并评分”）。</div>';
+  box.innerHTML='<div class="muted">'+(eng==='azure'
+    ? '录音中……读出这句话，读完按一下空格（或点“停止并评分”）。'
+    : '录音中……读出这句话，读完按一下空格结束（本地识别，离线免费）。')+'</div>';
 }
 
 async function sendAssess(blob){
@@ -593,6 +597,19 @@ async function sendAssess(blob){
     box.innerHTML='<div class="hint">'+(data.message||'评分失败')+'</div>'; return;
   }
   renderAssess(data);
+}
+
+// 基础引擎：上传录音 → 后端本地 Whisper 转写 → 文字匹配（离线、免费、不依赖 Google/Azure）
+async function sendTranscribe(blob){
+  const box=document.getElementById('shadowResult');
+  box.innerHTML='<div class="muted">本地识别中……（首次会加载模型、稍慢，之后很快）</div>';
+  const fd=new FormData();
+  fd.append('audio', blob, 'rec'+(blob.type.includes('ogg')?'.ogg':'.webm'));
+  let res,data;
+  try{ res=await fetch('/api/transcribe',{method:'POST',body:fd}); data=await res.json(); }
+  catch(e){ box.innerHTML='<div class="hint">请求失败：'+e.message+'</div>'; return; }
+  if(!data.ok){ box.innerHTML='<div class="hint">'+(data.message||'识别失败')+'</div>'; return; }
+  scoreShadowText(data.text||'');
 }
 
 function renderAssess(data){
@@ -640,24 +657,10 @@ function renderAssess(data){
   });
 }
 
-// ---- 基础识别（浏览器，免费无限，文字匹配非真实评测）----
+// ---- 基础识别（本地 Whisper，离线免费，文字匹配非真实发音评测）----
 function switchToBrowser(msg){
   setEngine('browser');
   document.getElementById('shadowResult').innerHTML='<div class="warnbox">'+msg+'</div>';
-}
-function setupRecognition(){ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR)return null; const r=new SR(); r.lang=state.accent; r.interimResults=false; r.maxAlternatives=1; return r; }
-let browserRec=null;
-function startBrowserRec(){
-  const box=document.getElementById('shadowResult');
-  if(browserRec){ try{ browserRec.stop(); }catch(e){} return; }   // 再按一下/再点一下 = 停止
-  const rec=setupRecognition();
-  if(!rec){ box.innerHTML='<div class="hint">浏览器不支持语音识别，请用 Chrome / Edge。</div>'; return; }
-  browserRec=rec; stopPlaybackForRec(); setRecBtn(true);
-  rec.lang=state.accent; box.innerHTML='<div class="muted">正在听……说完再按一下空格（或点按钮）结束</div>'; rec.start();
-  rec.onresult=e=>scoreShadowText(e.results[0][0].transcript);
-  rec.onerror=e=>{ box.innerHTML='<div class="hint">识别出错：'+e.error+'</div>'; };
-  rec.onend=()=>{ browserRec=null; setRecBtn(false); };
 }
 function scoreShadowText(heard){
   const target=normWords(state.sentences[state.idx]); const said=normWords(heard);

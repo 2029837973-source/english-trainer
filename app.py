@@ -420,6 +420,39 @@ async def api_assess(audio: UploadFile = File(...),
             except OSError: pass
 
 
+# ---------- 基础识别（本地 Whisper，免费离线；跟读没配 Azure 时的兜底，不依赖 Google）----------
+def _transcribe_text(wav_path: str) -> str:
+    """对一小段录音做本地转写，返回整段文字（用于跟读"基础"引擎的文字匹配）。"""
+    global _whisper
+    if _whisper is None:
+        from faster_whisper import WhisperModel
+        _whisper = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8", cpu_threads=6)
+    segs, _ = _whisper.transcribe(wav_path, language="en", beam_size=1, condition_on_previous_text=False)
+    return " ".join(s.text.strip() for s in segs).strip()
+
+
+@app.post("/api/transcribe")
+async def api_transcribe(audio: UploadFile = File(...)):
+    raw = await audio.read()
+    if not raw:
+        return JSONResponse(status_code=400, content={"ok": False, "message": "没收到音频。"})
+    suffix = os.path.splitext(audio.filename or "")[1] or ".webm"
+    wav = None
+    try:
+        wav = await run_in_threadpool(_to_wav16k, raw, suffix)
+        text = await run_in_threadpool(_transcribe_text, wav)
+        return {"ok": True, "text": text}
+    except subprocess.CalledProcessError as ex:
+        return JSONResponse(status_code=400, content={
+            "ok": False, "message": "音频转码失败：" + (ex.stderr or b"").decode("utf-8", "ignore")[-300:]})
+    except Exception as ex:
+        return JSONResponse(status_code=500, content={"ok": False, "message": "本地识别失败：" + str(ex)})
+    finally:
+        if wav:
+            try: os.unlink(wav)
+            except OSError: pass
+
+
 # ---------- 上传 PDF / Word 提取文字 ----------
 def _clean_doc_text(t: str) -> str:
     """整理提取出的文本：去 PDF 断词换行、段内换行合成空格、保留段落分隔（每段一行）。

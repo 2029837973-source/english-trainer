@@ -62,10 +62,12 @@ After the environment runs, prompt the user only if they want these features:
 
 1. **Pronunciation scoring (shadowing mode)** — Azure Speech key.
    - Create an Azure Speech resource (Free F0, 5 hrs/month, no charge).
-   - Put it in `azure_key.txt` at the repo root: line 1 = key, line 2 = region (e.g. `southeastasia`).
-   - Restart the server. `GET /api/health` then shows `"azure":true`.
-   - Without it, shadowing falls back to browser speech recognition (rough word-match; relies on
-     Google, often blocked in mainland China).
+   - Easiest for the user: open the app → gear icon (top-right) → "发音评测设置" → paste the key,
+     region `southeastasia` → Save. It writes `azure_key.txt` and takes effect immediately (no restart).
+   - Or manually: `azure_key.txt` at the repo root (line 1 = key, line 2 = region), or env vars
+     `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION` (env wins and locks the in-app panel).
+   - `GET /api/health` shows `"azure":true` once set. Without a key, shadowing still works via a
+     local Whisper fallback (basic word-match) — only the phoneme-level precise scoring needs Azure.
 2. **Bilibili videos** — a logged-in `cookies.txt`.
    - Bilibili returns HTTP 412 for logged-out requests. Use the browser extension
      "Get cookies.txt LOCALLY", log in to bilibili, export `cookies.txt` to the repo root

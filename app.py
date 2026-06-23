@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Optional
 
 import edge_tts
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -312,17 +312,25 @@ def api_extract(req: ExtractReq):    # 用同步函数，FastAPI 自动丢线程
         return JSONResponse(status_code=400, content={"error": str(ex)})
 
 # ---------- Azure 发音评测 ----------
-AZURE_KEY = os.environ.get("AZURE_SPEECH_KEY")
+AZURE_KEY_FILE = BASE / "azure_key.txt"
+AZURE_ENV_KEY = os.environ.get("AZURE_SPEECH_KEY")   # 环境变量优先；设了就锁定，面板不覆盖
+AZURE_KEY = AZURE_ENV_KEY
 AZURE_REGION = os.environ.get("AZURE_SPEECH_REGION", "eastasia")
-# 零配置：环境变量没设时，从项目根 azure_key.txt 读（第1行=key，可选第2行=region）。该文件勿外发/提交 git。
-if not AZURE_KEY:
-    _kf = BASE / "azure_key.txt"
-    if _kf.exists():
-        _lines = [l.strip() for l in _kf.read_text(encoding="utf-8").splitlines() if l.strip()]
-        if _lines:
-            AZURE_KEY = _lines[0]
-            if len(_lines) > 1:
-                AZURE_REGION = _lines[1]
+
+def _load_azure_from_file():
+    """环境变量没设时，从项目根 azure_key.txt 读 key/region 到全局（第1行=key，可选第2行=region）。
+    该文件含密钥，勿外发/提交 git。设置面板保存后会调它即时生效，无需重启。"""
+    global AZURE_KEY, AZURE_REGION
+    if AZURE_ENV_KEY:
+        return
+    if AZURE_KEY_FILE.exists():
+        lines = [l.strip() for l in AZURE_KEY_FILE.read_text(encoding="utf-8").splitlines() if l.strip()]
+        if lines:
+            AZURE_KEY = lines[0]
+            if len(lines) > 1:
+                AZURE_REGION = lines[1]
+
+_load_azure_from_file()
 
 
 def _to_wav16k(raw: bytes, suffix: str) -> str:
@@ -418,6 +426,38 @@ async def api_assess(audio: UploadFile = File(...),
         if wav:
             try: os.unlink(wav)
             except OSError: pass
+
+
+# ---------- Azure key 设置面板（App 内填 key，存了即时生效、无需重启）----------
+@app.get("/api/config/azure")
+async def get_azure_config():
+    tail = AZURE_KEY[-4:] if (AZURE_KEY and len(AZURE_KEY) >= 4) else ""
+    return {"configured": bool(AZURE_KEY), "region": AZURE_REGION,
+            "key_tail": tail, "locked": bool(AZURE_ENV_KEY)}
+
+
+@app.post("/api/config/azure")
+async def set_azure_config(request: Request):
+    """把 key/region 写进 azure_key.txt 并更新全局，立刻生效。环境变量配过的话拒绝覆盖。"""
+    global AZURE_KEY, AZURE_REGION
+    if AZURE_ENV_KEY:
+        return JSONResponse(status_code=409, content={
+            "ok": False, "message": "已用环境变量 AZURE_SPEECH_KEY 配置，设置面板不覆盖它。"})
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    key = (data.get("key") or "").strip()
+    region = (data.get("region") or "").strip() or "southeastasia"
+    if not key:
+        return JSONResponse(status_code=400, content={"ok": False, "message": "key 不能为空。"})
+    try:
+        AZURE_KEY_FILE.write_text(key + "\n" + region + "\n", encoding="utf-8")
+    except OSError as ex:
+        return JSONResponse(status_code=500, content={"ok": False, "message": "写入 azure_key.txt 失败：" + str(ex)})
+    AZURE_KEY = key
+    AZURE_REGION = region
+    return {"ok": True, "configured": True, "region": region, "key_tail": key[-4:] if len(key) >= 4 else ""}
 
 
 # ---------- 基础识别（本地 Whisper，免费离线；跟读没配 Azure 时的兜底，不依赖 Google）----------

@@ -62,14 +62,9 @@
    - 资源建好后进去 → 左侧 **Keys and Endpoint**（密钥和终结点）。
    - 复制 **KEY 1**（或 KEY 2，二选一）和 **Location/Region**（如 `southeastasia`）。
 
-4. **填进项目**
-   - 在项目根新建 `azure_key.txt`：
-     ```
-     第1行：你的 key
-     第2行：你的 region（如 southeastasia）
-     ```
-   - 或设环境变量 `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION`。
-   - **重启服务**一次生效。
+4. **填进项目（任选一种）**
+   - **最省事：开 App → 右上角齿轮「发音评测设置」→ 把 key 粘进去、区域填 `southeastasia` → 保存。** 立刻生效，不用重启、不用碰文件（key 只写到你本机的 `azure_key.txt`）。
+   - 或手动在项目根建 `azure_key.txt`（第1行 key，第2行 region），或设环境变量 `AZURE_SPEECH_KEY` / `AZURE_SPEECH_REGION`（环境变量优先，设了面板就不覆盖）。手动改文件需重启一次。
 
 5. **验证**
    - 浏览器访问 `http://localhost:8000/api/health`，返回 `"azure": true` 即配置成功。

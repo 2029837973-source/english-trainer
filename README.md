@@ -61,6 +61,8 @@ python -m uvicorn app:app --port 8000
 ```
 Open **http://localhost:8000** (use `localhost`, not the LAN IP, so the browser grants microphone access).
 
+**You can start with zero setup** — paste any English text, or a YouTube link, and practice right away. The Bilibili cookie and Azure key below are *optional* add-ons (only needed for B站 videos / precise pronunciation scoring); shadowing works out of the box with free browser recognition.
+
 ### Configuration (all optional, bring your own)
 
 This repo ships **no credentials**. Add your own only for the features you want:
@@ -133,6 +135,8 @@ pip install -r requirements.txt
 python -m uvicorn app:app --port 8000
 ```
 浏览器打开 **http://localhost:8000**（用 `localhost` 访问，否则不给麦克风权限）。
+
+**零配置就能开练**——粘一段英文、或贴个 YouTube 链接，立刻就能用。下面的 B站 cookie 和 Azure key 都是*可选*增强（只有练 B站 视频 / 要精准发音评分才需要）；跟读不配 Azure 会自动用免费的浏览器识别。
 
 ### 配置（都可选，各填各的）
 

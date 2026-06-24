@@ -300,7 +300,39 @@ let loopTimer=null;      // 循环播放的等待计时器
 let loopBlocked=false;   // 录音封锁循环：点录音瞬间同步置位，挡住授权等待期里漏网的 ended→scheduleLoop；显式播放/切句/切模式解封
 
 function splitSentences(text){
-  return text.replace(/\r/g,'').split(/\n+|(?<=[.!?])\s+/).map(s=>s.trim()).filter(Boolean);
+  text = text.replace(/\r/g,'');
+  // 第1步：把"软折行"接起来——句内换行(上行没句末标点、下行不是新句/对话)用空格接上；真换行保留
+  const lines = text.split('\n'), blocks=[];
+  for(let raw of lines){
+    const line = raw.trim();
+    if(!line) continue;
+    if(!blocks.length){ blocks.push(line); continue; }
+    const prev = blocks[blocks.length-1];
+    const prevEnds = /[.!?]["')\]]?$/.test(prev);
+    const startsNew = /^[A-Z0-9"'(\[]/.test(line) || /^[A-Za-z][\w'.\- ]{0,20}:/.test(line);
+    if(prevEnds || startsNew) blocks.push(line);
+    else blocks[blocks.length-1] = prev + ' ' + line;
+  }
+  // 第2步：每块按句末标点切，跳过缩写/单字母/小数；切的是原串，绝不拼接改字
+  const ABBR = new Set(['mr','mrs','ms','dr','prof','sr','jr','st','vs','etc','no','fig','inc','ltd','co','dept','approx','jan','feb','mar','apr','jun','jul','aug','sep','sept','oct','nov','dec']);
+  const out=[];
+  for(const block of blocks){
+    let start=0; const re=/[.!?]+["')\]]?/g; let m;
+    while((m=re.exec(block))){
+      const endIdx=m.index+m[0].length;
+      const after=block.slice(endIdx);
+      const realBoundary = /^\s+["'(\[]?[A-Z0-9]/.test(after) || /^\s*$/.test(after);  // 标点后是空格+大写/数字 或 结尾，才算真句末
+      if(!realBoundary) continue;
+      const before=block.slice(start, m.index+1);
+      const lw=((before.match(/(\S+)$/)||[''])[0]).replace(/[.!?]+$/,'').toLowerCase();
+      const isAbbr = ABBR.has(lw) || /^[a-z]$/.test(lw) || /^([a-z]\.)+[a-z]?$/.test(lw);  // 缩写/单字母/U.S.型
+      const numDot = /\d/.test(block[m.index-1]||'') && /\d/.test(block[endIdx]||'');       // 小数 3.5
+      if(isAbbr || numDot) continue;
+      out.push(block.slice(start,endIdx).trim()); start=endIdx;
+    }
+    const tail=block.slice(start).trim(); if(tail) out.push(tail);
+  }
+  return out.filter(Boolean);
 }
 
 // ---- TTS（后端 Edge TTS 自然嗓音；后端没开时退回浏览器嗓音）----
@@ -369,7 +401,9 @@ function playVideoSeg(idx){
   player._word=false;
   if(player._kind!=='video'){ player.src=state.audioUrl; player._kind='video'; }
   player.playbackRate=state.rate;
-  player._stopAt=seg.end+0.35; player._atEnd=false;   // +0.35s 缓冲，避免最后一个词尾音被切
+  const nx=state.timing[idx+1];   // 缓冲到下一句开始前：尽量放完最后一个词的尾音，又不串到下一句
+  player._stopAt = nx ? Math.min(seg.end+0.6, nx.start+0.3) : seg.end+0.6;
+  player._atEnd=false;
   try{ player.currentTime=seg.start; }catch(e){}
   player.play().catch(()=>{});
 }

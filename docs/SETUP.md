@@ -13,7 +13,8 @@
 ### 步骤
 
 1. **装浏览器扩展 "Get cookies.txt LOCALLY"**
-   - Chrome / Edge：在扩展商店搜索 `Get cookies.txt LOCALLY`（认准 LOCALLY，本地导出、不上传），安装。
+   - Chrome / Edge：**到官方扩展商店**（Chrome 应用商店 / Edge 加载项）搜索 `Get cookies.txt LOCALLY`（认准 LOCALLY，本地导出、不上传），点安装。
+   - ⚠️ 这个扩展能读你浏览器**所有 cookie（含各网站登录态）**，所以**只从官方商店装**——别从随便的链接下个 `.crx`/`.zip` 文件侧载，万一是被改过的版本会泄露你的登录态。
    - 这是目前最稳的方式。直接让 yt-dlp 从浏览器读 cookie 在很多 Windows 机器上会因 Edge/Chrome 的应用级加密失败，所以用扩展手动导出更可靠。
 
 2. **登录 B站**

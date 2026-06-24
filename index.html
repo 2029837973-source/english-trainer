@@ -634,6 +634,9 @@ async function sendAssess(blob){
     if(/quota|forbidden|exceed|403|429|out of/.test(m)){
       switchToBrowser('Azure 免费额度用完了，已自动切到基础识别（免费无限），可继续练。下月额度重置后可切回 Azure 精准。'); return;
     }
+    if(data.error==='canceled' || /connection|connect|timeout|remote host|ws_open|network|unreachable|underlying_io/.test(m)){
+      box.innerHTML='<div class="hint">连不上 Azure 语音服务器，多半是网络波动（国内连 Azure 偶尔会这样）。<br>·&nbsp;稍等一下<b>再点录音重试一次</b>，通常就好了；<br>·&nbsp;老连不上，就点上方切到「<b>基础(免费无限)</b>」，本地识别、离线也能练。</div>'; return;
+    }
     box.innerHTML='<div class="hint">'+(data.message||'评分失败')+'</div>'; return;
   }
   renderAssess(data);

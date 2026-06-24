@@ -77,8 +77,10 @@ After the environment runs, prompt the user only if they want these features:
    conversation, then place the file for them. Only Bilibili needs it — YouTube / X / most sites
    work without any cookie.**
    - Bilibili returns HTTP 412 for logged-out requests; a logged-in cookie fixes it.
-   - Have the user install the browser extension "Get cookies.txt LOCALLY", log in to bilibili.com,
-     and click Export — it downloads a `cookies.txt` (usually to their Downloads folder).
+   - Have the user install the "Get cookies.txt LOCALLY" extension **from the official Chrome Web
+     Store / Edge Add-ons** (this extension reads all browser cookies — never tell them to download
+     a loose `.crx`/`.zip` and sideload it). Then log in to bilibili.com and click Export — it
+     downloads a `cookies.txt` (usually to their Downloads folder).
    - Then YOU move/copy that file to the repo root as `cookies.txt`. It's auto-detected and read
      fresh on every request — no restart. (Or point elsewhere with `YT_COOKIES_FILE=<path>`.)
    - If a Bilibili extract still 412s, the cookie expired — have them re-export, and you replace it.

@@ -532,6 +532,12 @@ function ipaCandidates(w){
   return [...new Set(c)];
 }
 async function lookupIpa(word){
+  // 本地优先：离线 CMU 词典→IPA，覆盖广、国内稳、不规则/人名/缩写都查得到
+  try{
+    const r=await fetch('/api/ipa?word='+encodeURIComponent(word));
+    if(r.ok){ const d=await r.json(); if(d.ipa) return '/'+d.ipa.replace(/^\/+|\/+$/g,'')+'/'; }
+  }catch{}
+  // 兜底：仅本地查不到的生僻/合成词，才试在线词典（国内可能不稳）
   for(const cand of ipaCandidates(word)){
     try{
       const r=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(cand));

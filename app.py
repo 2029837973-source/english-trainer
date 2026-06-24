@@ -609,6 +609,26 @@ async def api_segment(req: SegReq):
     return {"words": words}
 
 
+# ---------- 音标：本地 CMU 词典→IPA（离线、覆盖广、不依赖国外词典 API）----------
+_e2ipa = None
+@app.get("/api/ipa")
+async def api_ipa(word: str = ""):
+    """查单词音标。本地 eng_to_ipa（含 CMU 词典，规则/不规则/人名/缩写都覆盖）。
+    查不到的生僻/合成词返回空串，前端再退到在线词典兜底。"""
+    global _e2ipa
+    w = (word or "").strip()
+    if not w:
+        return {"ipa": ""}
+    try:
+        if _e2ipa is None:
+            import eng_to_ipa as _e2ipa
+        res = _e2ipa.convert(w)
+    except Exception:
+        return {"ipa": ""}
+    ok = bool(res) and "*" not in res and res.strip().lower() != w.lower()
+    return {"ipa": res if ok else ""}
+
+
 @app.get("/api/health")
 async def health():
     return {"ok": True, "azure": bool(AZURE_KEY), "region": AZURE_REGION}

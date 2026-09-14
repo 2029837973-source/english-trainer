@@ -13,9 +13,10 @@ edge-tts==7.2.8
 yt-dlp==2026.6.9
 
 # 无字幕时本地转写。
-# ⚠ ctranslate2 必须锁 4.4.0：新版在部分 CPU（如 AMD Ryzen 6000 系）上加载模型会直接段错误（exit 139），见 README「兼容性踩坑」
+# Windows 保留 4.4.0，避免部分 AMD CPU 加载模型时崩溃；Linux 使用已修复可执行栈标记的 4.6.3。
 faster-whisper==1.2.1
-ctranslate2==4.4.0
+ctranslate2==4.4.0; platform_system == "Windows"
+ctranslate2==4.6.3; platform_system == "Linux"
 numpy==1.26.4          # 锁 <2，否则 ctranslate2/faster-whisper 报 "Failed to initialize NumPy"
 
 # 发音评测（Azure；可选功能，没配 key 会自动退回浏览器识别，不影响其余模式）

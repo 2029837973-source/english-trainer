@@ -29,6 +29,7 @@
    - 把 `cookies.txt` 移动到 `english-trainer/`（与 `app.py` 同级）。
    - 程序会**自动识别**，无需重启、无需改配置。
    - 也支持别的文件名/路径：设环境变量 `YT_COOKIES_FILE=D:\path\to\cookies.txt`（优先级更高）。
+   - **部署在 Render 时**：不要把 Cookie 提交到 Git。请在服务的 **Environment → Secret Files** 中添加文件名 `cookies.txt`，粘贴文件内容；Docker 内会以 `/etc/secrets/cookies.txt` 提供，程序会自动识别。保存后重新部署，再访问 `/api/health` 确认 `bilibili_cookie` 为 `true`。
 
 5. **验证**
    - 回到网页，贴一个 B站 视频链接，点"提取并开始练"。出句子就成功了。

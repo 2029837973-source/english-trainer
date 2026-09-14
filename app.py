@@ -209,6 +209,43 @@ def whisper_transcribe(path: str):
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
+_URL_TRAILING_PUNCTUATION = ".,;:!?)]}>\"'，。；：！？】》」』"
+
+
+def normalize_video_url(raw: str) -> str:
+    """从粘贴文本中取首个 URL，并移除 Bilibili 分享追踪参数。"""
+    match = re.search(r"https?://[^\s<>]+", raw or "", flags=re.IGNORECASE)
+    if not match:
+        raise ValueError("没有检测到有效视频链接")
+
+    candidate = match.group(0).rstrip(_URL_TRAILING_PUNCTUATION)
+    parts = urllib.parse.urlsplit(candidate)
+    if parts.scheme.lower() not in ("http", "https") or not parts.netloc:
+        raise ValueError("没有检测到有效视频链接")
+
+    host = (parts.hostname or "").lower()
+    if host == "b23.tv" or host == "bilibili.com" or host.endswith(".bilibili.com"):
+        query = urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
+        query = [(key, value) for key, value in query if key.lower() != "vd_source"]
+        candidate = urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query)))
+    return candidate
+
+
+def find_cookie_file() -> Optional[str]:
+    """查找本机 Cookie，或 Render Docker 的 Secret File。"""
+    configured = os.environ.get("YT_COOKIES_FILE")
+    if configured and os.path.isfile(configured):
+        return configured
+    for candidate in (
+        BASE / "cookies.txt",
+        BASE / "bili_cookies.txt",
+        Path("/etc/secrets/cookies.txt"),
+        Path("/etc/secrets/bili_cookies.txt"),
+    ):
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
 def separate_vocals(audio_path: str) -> str:
     """用 Demucs 分离出人声(去背景音乐)，返回新的人声 mp3 路径。失败抛异常。CPU 慢，几分钟。"""
     outdir = MEDIA / "_demucs"
@@ -229,8 +266,10 @@ def separate_vocals(audio_path: str) -> str:
 
 
 def run_extract(url: str, start: Optional[float], end: Optional[float], vocals: bool = False):
+    url = normalize_video_url(url)
     vid = uuid.uuid4().hex[:10]
-    is_bili = "bilibili.com" in url or "b23.tv" in url
+    host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    is_bili = host == "b23.tv" or host == "bilibili.com" or host.endswith(".bilibili.com")
     opts = {
         "format": "bestaudio/best",
         "outtmpl": str(MEDIA / f"{vid}.%(ext)s"),
@@ -255,13 +294,8 @@ def run_extract(url: str, start: Optional[float], end: Optional[float], vocals: 
         opts["cookiesfrombrowser"] = (cb,)
     # cookies.txt（B 站 412 等强反爬时最稳；浏览器加密锁库取不出时用这个）。
     # 零配置：项目根放 cookies.txt / bili_cookies.txt 就自动启用；也可用 YT_COOKIES_FILE 指定别处。
-    cf = os.environ.get("YT_COOKIES_FILE")
-    if not cf:
-        for name in ("cookies.txt", "bili_cookies.txt"):
-            cand = BASE / name
-            if cand.exists():
-                cf = str(cand); break
-    if cf and os.path.exists(cf):
+    cf = find_cookie_file()
+    if cf:
         opts["cookiefile"] = cf
     if start is not None and end is not None and end > start:
         opts["download_ranges"] = download_range_func(None, [(start, end)])
@@ -314,7 +348,13 @@ def api_extract(req: ExtractReq):    # 用同步函数，FastAPI 自动丢线程
     try:
         return run_extract(req.url, req.start, req.end, req.vocals)
     except Exception as ex:
-        return JSONResponse(status_code=400, content={"error": str(ex)})
+        message = str(ex)
+        is_bili = bool(re.search(r"(?:bilibili\.com|b23\.tv)", req.url or "", flags=re.IGNORECASE))
+        if is_bili and ("HTTP Error 412" in message or "HTTP Error 403" in message):
+            message = ("B站拒绝了服务器请求（HTTP 403/412）：登录 Cookie 缺失或已过期。"
+                       "本机请更新项目根目录的 cookies.txt；Render 请添加名为 cookies.txt "
+                       "的 Secret File（运行路径 /etc/secrets/cookies.txt），然后重新部署。")
+        return JSONResponse(status_code=400, content={"error": message})
 
 # ---------- Azure 发音评测 ----------
 AZURE_KEY_FILE = BASE / "azure_key.txt"
@@ -784,7 +824,8 @@ async def api_word_meanings(req: WordMeaningsReq):
 @app.get("/api/health")
 async def health():
     return {"ok": True, "azure": bool(AZURE_KEY), "region": AZURE_REGION,
-            "translation": "mymemory", "dictionary": "youdao"}
+            "translation": "mymemory", "dictionary": "youdao",
+            "bilibili_cookie": bool(os.environ.get("YT_COOKIES_BROWSER") or find_cookie_file())}
 
 # 首页 + 静态资源（放最后，避免盖住上面的 /api 路由）
 @app.get("/")

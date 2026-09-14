@@ -212,6 +212,30 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 _URL_TRAILING_PUNCTUATION = ".,;:!?)]}>\"'，。；：！？】》」』"
 
 
+def video_extract_limit() -> float:
+    """Render 免费实例限制片段长度；本机默认不限制。"""
+    raw = os.environ.get("MAX_EXTRACT_SECONDS")
+    if raw is None:
+        return 120.0 if os.environ.get("RENDER", "").lower() == "true" else 0.0
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        return 120.0
+
+
+def validate_extract_range(start: Optional[float], end: Optional[float]) -> None:
+    limit = video_extract_limit()
+    if not limit:
+        return
+    if start is None or end is None:
+        raise ValueError("线上版内存有限，请填写开始和结束时间；每次最长 2 分钟，例如 0:00 到 2:00。")
+    if start < 0 or end <= start:
+        raise ValueError("结束时间必须晚于开始时间。")
+    if end - start > limit:
+        minutes = max(1, int(limit // 60))
+        raise ValueError(f"线上版每次最多提取 {minutes} 分钟，请缩短开始和结束时间。")
+
+
 def normalize_video_url(raw: str) -> str:
     """从粘贴文本中取首个 URL，并移除 Bilibili 分享追踪参数。"""
     match = re.search(r"https?://[^\s<>]+", raw or "", flags=re.IGNORECASE)
@@ -280,6 +304,7 @@ def separate_vocals(audio_path: str) -> str:
 
 def run_extract(url: str, start: Optional[float], end: Optional[float], vocals: bool = False):
     url = normalize_video_url(url)
+    validate_extract_range(start, end)
     vid = uuid.uuid4().hex[:10]
     host = (urllib.parse.urlsplit(url).hostname or "").lower()
     is_bili = host == "b23.tv" or host == "bilibili.com" or host.endswith(".bilibili.com")
@@ -847,7 +872,8 @@ async def api_word_meanings(req: WordMeaningsReq):
 async def health():
     return {"ok": True, "azure": bool(AZURE_KEY), "region": AZURE_REGION,
             "translation": "mymemory", "dictionary": "youdao",
-            "bilibili_cookie": bool(os.environ.get("YT_COOKIES_BROWSER") or find_cookie_file())}
+            "bilibili_cookie": bool(os.environ.get("YT_COOKIES_BROWSER") or find_cookie_file()),
+            "video_max_seconds": video_extract_limit() or None}
 
 # 首页 + 静态资源（放最后，避免盖住上面的 /api 路由）
 @app.get("/")

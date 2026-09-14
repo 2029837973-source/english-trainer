@@ -217,7 +217,7 @@
       <div class="divider">或，从视频提取真实素材</div>
       <input class="tin full" id="vurl" placeholder="粘贴视频链接（YouTube / Bilibili 等，优先用字幕，没字幕自动转写）">
       <div class="row" style="margin-top:12px;">
-        <span class="muted">只练某一段（选填，留空=全部）</span>
+        <span class="muted">只练某一段（线上版必填，每次最多2分钟）</span>
         <input class="tin t" id="vstart" placeholder="开始 如0:30">
         <span class="muted">→</span>
         <input class="tin t" id="vend" placeholder="结束 如2:00">
@@ -1063,7 +1063,12 @@ document.getElementById('vload').onclick=async ()=>{
   if(!url){ info.textContent='先贴个视频链接～'; return; }
   const start=parseTime(document.getElementById('vstart').value);
   const end=parseTime(document.getElementById('vend').value);
+  const onlineLimit=location.hostname.endsWith('.onrender.com') ? 120 : 0;
+  if(onlineLimit && (start==null || end==null)){
+    info.textContent='线上版内存有限，请填写开始和结束时间，例如 0:00 到 2:00'; return;
+  }
   if(start!=null && end!=null && end<=start){ info.textContent='结束时间要晚于开始时间'; return; }
+  if(onlineLimit && end-start>onlineLimit){ info.textContent='线上版每次最多提取2分钟，请缩短时间范围'; return; }
   const vocals=document.getElementById('vvocals').checked;
   const btn=document.getElementById('vload'); btn.disabled=true;
   info.textContent= vocals
@@ -1072,7 +1077,10 @@ document.getElementById('vload').onclick=async ()=>{
   try{
     const res=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({url,start,end,vocals})});
-    const data=await res.json();
+    const raw=await res.text();
+    let data=null;
+    try{ if(raw) data=JSON.parse(raw); }catch(e){}
+    if(!data) throw new Error('服务器没有返回完整结果，可能因片段过长而重启。请填写开始和结束时间，每次不超过2分钟');
     if(!res.ok || data.error) throw new Error(data.error || ('HTTP '+res.status));
     if(!data.sentences || !data.sentences.length) throw new Error('没提取到字幕或语音内容');
     state.source='video'; state.histId=null; state.idxBy={blind:0,listen:0,shadow:0};

@@ -246,6 +246,19 @@ def find_cookie_file() -> Optional[str]:
             return str(candidate)
     return None
 
+
+def make_writable_cookie_copy(cookie_path: str) -> tuple[str, Optional[str]]:
+    """Render Secret Files 是只读挂载；yt-dlp 会回写 Cookie，需使用临时可写副本。"""
+    path = Path(cookie_path)
+    is_render_secret = path.as_posix().startswith("/etc/secrets/")
+    if not is_render_secret and os.access(cookie_path, os.W_OK):
+        return cookie_path, None
+
+    fd, temporary = tempfile.mkstemp(prefix="yt-cookies-", suffix=".txt", dir=str(MEDIA))
+    os.close(fd)
+    shutil.copyfile(cookie_path, temporary)
+    return temporary, temporary
+
 def separate_vocals(audio_path: str) -> str:
     """用 Demucs 分离出人声(去背景音乐)，返回新的人声 mp3 路径。失败抛异常。CPU 慢，几分钟。"""
     outdir = MEDIA / "_demucs"
@@ -295,13 +308,22 @@ def run_extract(url: str, start: Optional[float], end: Optional[float], vocals: 
     # cookies.txt（B 站 412 等强反爬时最稳；浏览器加密锁库取不出时用这个）。
     # 零配置：项目根放 cookies.txt / bili_cookies.txt 就自动启用；也可用 YT_COOKIES_FILE 指定别处。
     cf = find_cookie_file()
+    temporary_cookie = None
     if cf:
+        cf, temporary_cookie = make_writable_cookie_copy(cf)
         opts["cookiefile"] = cf
     if start is not None and end is not None and end > start:
         opts["download_ranges"] = download_range_func(None, [(start, end)])
         opts["force_keyframes_at_cuts"] = True
-    with YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=True)
+    try:
+        with YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+    finally:
+        if temporary_cookie:
+            try:
+                os.unlink(temporary_cookie)
+            except OSError:
+                pass
 
     mp3 = glob.glob(str(MEDIA / f"{vid}*.mp3"))
     audio_file = os.path.basename(mp3[0]) if mp3 else None

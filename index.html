@@ -70,6 +70,24 @@
   .sentence .w.ok{ color:var(--green); }
   .sentence .w.bad{ color:var(--bad); text-decoration:underline wavy var(--bad); text-underline-offset:4px; }
 
+  /* 逐句中文 + 本句词汇 */
+  .aidTools{ margin:2px 0 8px; display:none; }
+  .aidTools button{ padding:7px 12px; font-size:12px; }
+  .aidPanel{ display:none; margin:10px 0 16px; border:1px solid #dbe8f7; background:#f8fbff;
+    border-radius:14px; padding:15px 16px; }
+  .aidLabel{ font-size:11px; font-weight:700; letter-spacing:.8px; color:var(--blue); margin-bottom:4px; }
+  .zhSentence{ font-size:16px; line-height:1.7; color:#344359; margin-bottom:13px; }
+  .vocabTitle{ font-size:12px; color:var(--muted); margin:3px 0 8px; }
+  .vocabGrid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+  .vocabItem{ border:1px solid var(--line); background:#fff; border-radius:9px; padding:7px 9px;
+    cursor:pointer; transition:.12s; min-width:0; }
+  .vocabItem:hover{ border-color:var(--blue); background:var(--blue-soft); }
+  .vocabWord{ color:var(--blue); font-size:13px; font-weight:700; }
+  .vocabMeaning{ color:#556274; font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+  .aidNote{ color:var(--muted); font-size:11px; margin-top:10px; }
+  .aidError{ color:var(--bad); font-size:13px; }
+  @media(max-width:560px){ .vocabGrid{ grid-template-columns:1fr; } }
+
   /* 连读通读 */
   .passage{ font-size:23px; font-weight:500; line-height:1.95; letter-spacing:.3px; }
   .passage .fw{ border-radius:5px; padding:0 2px; transition:.1s; }
@@ -86,12 +104,15 @@
   .speed{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); }
   input[type=range]{ accent-color:var(--blue); width:120px; }
 
-  .pop{ position:fixed; z-index:50; display:none; align-items:center; gap:8px; cursor:pointer;
+  .pop{ position:fixed; z-index:50; display:none; flex-direction:column; align-items:flex-start; gap:4px; cursor:pointer;
     background:#fff; border:1px solid var(--line); border-radius:12px;
-    padding:8px 15px; box-shadow:0 10px 30px rgba(40,60,95,.16); white-space:nowrap; }
+    padding:10px 14px; box-shadow:0 10px 30px rgba(40,60,95,.16); width:max-content; max-width:min(390px,calc(100vw - 24px)); }
   .pop:hover{ border-color:var(--blue); }
+  .popTop{ display:flex; align-items:center; gap:8px; }
   .pop .picon{ color:var(--blue); flex:none; }
+  .pop .pw{ color:var(--ink); font-size:15px; font-weight:700; }
   .pop .pi{ color:var(--blue); font-size:16px; font-weight:600; }
+  .pop .pm{ color:#556274; font-size:13px; line-height:1.45; white-space:normal; }
 
   .feedback{ margin-top:18px; }
   .score{ font-size:30px; font-weight:800; }
@@ -234,6 +255,16 @@
         <button class="ghost" id="loopBtn" title="循环播放当前句，每遍之间留空隙给你写">循环</button>
       </div>
       <div class="sentence" id="sentence"></div>
+      <div class="aidTools" id="aidTools">
+        <button class="ghost" id="aidToggle">显示中文与本句词汇</button>
+      </div>
+      <div class="aidPanel" id="aidPanel">
+        <div class="aidLabel">本句翻译</div>
+        <div class="zhSentence" id="zhSentence"></div>
+        <div class="vocabTitle">本句词汇（重复词合并；点击可听发音）</div>
+        <div class="vocabGrid" id="vocabGrid"></div>
+        <div class="aidNote">免密联网翻译与词典，不使用 ChatGPT / Codex / Azure 额度。</div>
+      </div>
       <div class="controls" id="navRow">
         <button class="ghost" id="prev">← 上一句</button>
         <button class="ghost" id="next">下一句 →</button>
@@ -282,13 +313,17 @@
     </div>
   </div>
 
-  <div class="foot">点句子里任意单词即可发音、看音标</div>
+  <div class="foot">点句子里任意单词即可发音、看音标和中文释义</div>
 </div>
 
-<!-- 音标弹层：点词即发音，这里只显示音标；点它可重听 -->
+<!-- 单词弹层：点词即发音，并显示音标与中文释义；点弹层可重听 -->
 <div class="pop" id="pop" title="点这里重听">
-  <svg class="picon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
-  <span class="pi" id="popIpa">…</span>
+  <div class="popTop">
+    <svg class="picon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+    <span class="pw" id="popWord"></span>
+    <span class="pi" id="popIpa">…</span>
+  </div>
+  <div class="pm" id="popMeaning">正在查询中文释义…</div>
 </div>
 
 <script>
@@ -465,6 +500,75 @@ function renderSentence(){
   el.querySelectorAll('.w').forEach(s=>s.addEventListener('click',e=>showWordPopup(s.textContent,e)));
 }
 
+// ---- 逐句中文 + 本句全部单词释义（按需显示，避免盲听时提前看到答案）----
+const sentenceTranslationCache=new Map(), wordMeaningCache=new Map();
+let aidOpen=false, aidGeneration=0, aidSentence='';
+const sentenceWords=text=>[...new Set((text.match(/[A-Za-z]+(?:'[A-Za-z]+)*/g)||[]).map(w=>w.toLowerCase()))];
+
+async function lookupTranslation(text){
+  if(sentenceTranslationCache.has(text)) return sentenceTranslationCache.get(text);
+  const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text})});
+  const d=await r.json();
+  if(!r.ok||d.error) throw new Error(d.error||'翻译失败');
+  sentenceTranslationCache.set(text,d.translation||'');
+  return d.translation||'';
+}
+
+async function lookupMeanings(words){
+  const missing=words.filter(w=>!wordMeaningCache.has(w));
+  if(missing.length){
+    const r=await fetch('/api/word-meanings',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({words:missing})});
+    const d=await r.json();
+    if(!r.ok||d.error) throw new Error(d.error||'词典查询失败');
+    Object.entries(d.meanings||{}).forEach(([w,m])=>wordMeaningCache.set(w,m));
+  }
+  return Object.fromEntries(words.map(w=>[w,wordMeaningCache.get(w)||'暂未查到释义']));
+}
+
+async function loadLearningAid(){
+  const sentence=state.sentences[state.idx]||'', words=sentenceWords(sentence);
+  const myGeneration=++aidGeneration;
+  const zh=document.getElementById('zhSentence'), grid=document.getElementById('vocabGrid');
+  zh.innerHTML='<span class="muted">正在翻译…</span>';
+  grid.innerHTML='<div class="muted">正在查询本句词汇…</div>';
+  const [trResult,wordResult]=await Promise.allSettled([lookupTranslation(sentence),lookupMeanings(words)]);
+  if(myGeneration!==aidGeneration || sentence!==(state.sentences[state.idx]||'') || !aidOpen) return;
+  zh.innerHTML=trResult.status==='fulfilled'
+    ? escapeHtml(trResult.value)
+    : `<span class="aidError">${escapeHtml(trResult.reason?.message||'翻译暂时不可用')}</span>`;
+  if(wordResult.status==='fulfilled'){
+    const meanings=wordResult.value;
+    grid.innerHTML=words.map(w=>`<div class="vocabItem" data-word="${w}" title="点击发音并查看音标">
+      <div class="vocabWord">${w}</div><div class="vocabMeaning">${escapeHtml(meanings[w])}</div></div>`).join('')
+      || '<div class="muted">本句没有可识别的英文单词。</div>';
+    grid.querySelectorAll('.vocabItem').forEach(item=>item.onclick=e=>showWordPopup(item.dataset.word,e));
+  }else{
+    grid.innerHTML=`<div class="aidError">${escapeHtml(wordResult.reason?.message||'词典暂时不可用')}</div>`;
+  }
+}
+
+function resetLearningAid(){
+  aidOpen=false; aidGeneration++; aidSentence='';
+  document.getElementById('aidPanel').style.display='none';
+  document.getElementById('aidToggle').textContent='显示中文与本句词汇';
+}
+
+function syncLearningAid(){
+  const supported=state.mode!=='blind'&&state.mode!=='flow';
+  document.getElementById('aidTools').style.display=supported?'flex':'none';
+  if(!supported || (aidOpen && aidSentence!==(state.sentences[state.idx]||''))) resetLearningAid();
+}
+
+document.getElementById('aidToggle').onclick=()=>{
+  aidOpen=!aidOpen;
+  aidSentence=aidOpen?(state.sentences[state.idx]||''):'';
+  document.getElementById('aidPanel').style.display=aidOpen?'block':'none';
+  document.getElementById('aidToggle').textContent=aidOpen?'隐藏中文与本句词汇':'显示中文与本句词汇';
+  if(aidOpen) loadLearningAid(); else aidGeneration++;
+};
+
 // ---- 连读通读渲染 + 逐词高亮朗读 ----
 let flowRanges=[], flowText='';
 function renderFlow(){
@@ -517,6 +621,7 @@ function render(){ updateProgress();
   if(state.mode==='flow'){ renderFlow(); if(state.source!=='video') prefetch(flowText); }
   else { renderSentence();
     if(state.source!=='video'){ prefetch(state.sentences[state.idx]); prefetch(state.sentences[state.idx+1]); } }
+  syncLearningAid();
 }
 
 // ---- 点单词 ----
@@ -551,20 +656,36 @@ async function lookupIpa(word){
   }
   return '';
 }
+async function lookupWordMeaning(word){
+  if(wordMeaningCache.has(word)) return wordMeaningCache.get(word);
+  const meanings=await lookupMeanings([word]);
+  return meanings[word]||'暂未查到释义';
+}
+let popAnchor={x:12,y:12};
+function positionWordPopup(){
+  const pop=document.getElementById('pop');
+  const x=Math.min(popAnchor.x,window.innerWidth-pop.offsetWidth-12);
+  const y=Math.min(popAnchor.y+16,window.innerHeight-pop.offsetHeight-12);
+  pop.style.left=Math.max(12,x)+'px'; pop.style.top=Math.max(12,y)+'px';
+}
 async function showWordPopup(word,evt){
   const clean=word.toLowerCase().replace(/[^a-z']/g,''); popWordText=clean;
   speak(clean,{rate:0.9,word:true});             // 点词即发音，不用再点喇叭；word:true → 播完不勾起整句循环
   const pop=document.getElementById('pop');
+  document.getElementById('popWord').textContent=clean;
   document.getElementById('popIpa').textContent='…';
-  pop.style.display='inline-flex';
-  const x=Math.min(evt.clientX, window.innerWidth-pop.offsetWidth-16);
-  pop.style.left=Math.max(12,x)+'px'; pop.style.top=(evt.clientY+16)+'px';
-  const ipa=await lookupIpa(clean);
-  if(popWordText===clean) document.getElementById('popIpa').textContent=ipa||'/—/';  // 仅当仍是这个词才写，避免慢查询覆盖新点击
+  document.getElementById('popMeaning').textContent='正在查询中文释义…';
+  pop.style.display='flex'; popAnchor={x:evt.clientX,y:evt.clientY}; positionWordPopup();
+  const [ipaResult,meaningResult]=await Promise.allSettled([lookupIpa(clean),lookupWordMeaning(clean)]);
+  if(popWordText!==clean) return;                // 避免慢查询覆盖用户后来点的新词
+  document.getElementById('popIpa').textContent=ipaResult.status==='fulfilled'&&ipaResult.value?ipaResult.value:'/—/';
+  document.getElementById('popMeaning').textContent=meaningResult.status==='fulfilled'
+    ? meaningResult.value : '中文释义暂时不可用';
+  positionWordPopup();
 }
 document.getElementById('pop').onclick=()=>speak(popWordText,{rate:0.9,word:true});   // 点弹层重听
 document.addEventListener('click',e=>{ const pop=document.getElementById('pop');
-  if(pop.style.display==='inline-flex' && !pop.contains(e.target) && !e.target.classList.contains('w')) pop.style.display='none'; });
+  if(pop.style.display==='flex' && !pop.contains(e.target) && !e.target.closest('.w,.vocabItem')) pop.style.display='none'; });
 
 const normWords=s=>s.toLowerCase().replace(/[^a-z'\s]/g,' ').split(/\s+/).filter(Boolean);
 

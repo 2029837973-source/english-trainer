@@ -1,0 +1,15 @@
+.git
+.venv
+__pycache__
+media
+docs
+*.log
+*.err
+cookies.txt
+bili_cookies.txt
+azure_key.txt
+claude_key.txt
+*_key.txt
+*.key
+*.cookies
+.env

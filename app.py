@@ -6,6 +6,8 @@
 """
 import base64
 import glob
+import html as html_lib
+import json
 import math
 import os
 import re
@@ -13,7 +15,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.parse
+import urllib.request
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
 
@@ -629,13 +634,167 @@ async def api_ipa(word: str = ""):
     return {"ipa": res if ok else ""}
 
 
+# ---------- 学习辅助：逐句翻译 + 中文单词释义（免密在线服务，本机内存缓存）----------
+_translation_cache: dict[str, str] = {}
+_meaning_cache: dict[str, str] = {}
+_HTTP_HEADERS = {
+    "User-Agent": UA,
+    "Accept": "application/json,text/plain,*/*",
+}
+
+
+def _get_json(url: str, timeout: int = 12):
+    req = urllib.request.Request(url, headers=_HTTP_HEADERS)
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8", errors="replace"))
+
+
+def _cache_put(cache: dict, key: str, value: str, limit: int = 2000):
+    if len(cache) >= limit:
+        cache.pop(next(iter(cache)))
+    cache[key] = value
+
+
+def translate_to_chinese(text: str) -> str:
+    clean = re.sub(r"\s+", " ", (text or "").strip())
+    if not clean:
+        return ""
+    if clean in _translation_cache:
+        return _translation_cache[clean]
+    if len(clean) > 500:
+        raise ValueError("单句过长，请控制在 500 个字符以内。")
+    query = urllib.parse.urlencode({"q": clean, "langpair": "en|zh-CN"})
+    data = _get_json("https://api.mymemory.translated.net/get?" + query)
+    result = html_lib.unescape(str(data.get("responseData", {}).get("translatedText", ""))).strip()
+    status = int(data.get("responseStatus") or 200)
+    if status >= 400 or not result:
+        raise RuntimeError(data.get("responseDetails") or "翻译服务暂时没有返回结果。")
+    _cache_put(_translation_cache, clean, result)
+    return result
+
+
+def _word_candidates(word: str):
+    """给常见屈折形式补充词根候选；原词始终优先。"""
+    w = word.lower()
+    out = [w]
+    if len(w) > 4 and w.endswith("ies"):
+        out.append(w[:-3] + "y")
+    if len(w) > 4 and w.endswith("ing"):
+        stem = w[:-3]
+        out.extend((stem, stem + "e"))
+        if len(stem) > 2 and stem[-1] == stem[-2]:
+            out.append(stem[:-1])
+    if len(w) > 3 and w.endswith("ed"):
+        stem = w[:-2]
+        out.extend((stem, w[:-1]))
+        if len(stem) > 2 and stem[-1] == stem[-2]:
+            out.append(stem[:-1])
+    if len(w) > 3 and w.endswith("es"):
+        out.extend((w[:-2], w[:-1]))
+    elif len(w) > 2 and w.endswith("s"):
+        out.append(w[:-1])
+    return list(dict.fromkeys(x for x in out if x))
+
+
+def _clean_dictionary_line(value) -> str:
+    if isinstance(value, list):
+        value = "；".join(str(x) for x in value)
+    text = re.sub(r"<[^>]+>", "", html_lib.unescape(str(value or "")))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def lookup_chinese_meaning(word: str) -> str:
+    clean = re.sub(r"[^A-Za-z'-]", "", (word or "")).lower().strip("'-")
+    if not clean:
+        return ""
+    if clean in _meaning_cache:
+        return _meaning_cache[clean]
+
+    meaning = ""
+    for candidate in _word_candidates(clean):
+        try:
+            query = urllib.parse.urlencode({"q": candidate})
+            data = _get_json("https://dict.youdao.com/jsonapi?" + query)
+            words = (data.get("ec") or {}).get("word") or []
+            if isinstance(words, dict):
+                words = [words]
+            lines = []
+            for entry in words:
+                for item in entry.get("trs") or []:
+                    tr = item.get("tr") or []
+                    if not tr:
+                        continue
+                    line = _clean_dictionary_line((tr[0].get("l") or {}).get("i"))
+                    if line and line not in lines:
+                        lines.append(line)
+                    if len(lines) >= 3:
+                        break
+                if lines:
+                    break
+            if lines:
+                meaning = "；".join(lines)
+                break
+        except Exception:
+            continue
+
+    # 词典偶尔查不到人名、缩写或屈折形式，用句子翻译通道兜底。
+    if not meaning:
+        try:
+            meaning = translate_to_chinese(clean)
+        except Exception:
+            meaning = "暂未查到释义"
+    _cache_put(_meaning_cache, clean, meaning)
+    return meaning
+
+
+class TranslateReq(BaseModel):
+    text: str
+
+
+class WordMeaningsReq(BaseModel):
+    words: list[str]
+
+
+@app.post("/api/translate")
+async def api_translate(req: TranslateReq):
+    try:
+        translated = await run_in_threadpool(translate_to_chinese, req.text)
+        return {"translation": translated}
+    except Exception as ex:
+        return JSONResponse(status_code=502, content={"error": f"中文翻译暂时不可用：{ex}"})
+
+
+@app.post("/api/word-meanings")
+async def api_word_meanings(req: WordMeaningsReq):
+    words = []
+    for raw in req.words[:60]:
+        clean = re.sub(r"[^A-Za-z'-]", "", (raw or "")).lower().strip("'-")
+        if clean and clean not in words:
+            words.append(clean)
+
+    def fetch_all():
+        with ThreadPoolExecutor(max_workers=min(6, max(1, len(words)))) as pool:
+            meanings = list(pool.map(lookup_chinese_meaning, words))
+        return [{"word": word, "meaning": meaning} for word, meaning in zip(words, meanings)]
+
+    results = await run_in_threadpool(fetch_all) if words else []
+    return {"words": results, "meanings": {item["word"]: item["meaning"] for item in results}}
+
+
 @app.get("/api/health")
 async def health():
-    return {"ok": True, "azure": bool(AZURE_KEY), "region": AZURE_REGION}
+    return {"ok": True, "azure": bool(AZURE_KEY), "region": AZURE_REGION,
+            "translation": "mymemory", "dictionary": "youdao"}
 
 # 首页 + 静态资源（放最后，避免盖住上面的 /api 路由）
 @app.get("/")
 async def index():
-    return FileResponse(BASE / "index.html")
+    return FileResponse(
+        BASE / "index.html",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+        },
+    )
 
-app.mount("/", StaticFiles(directory=str(BASE)), name="static")
+app.mount("/media", StaticFiles(directory=str(MEDIA)), name="media")
